@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cough Code — ผลการคัดกรองเบื้องต้น</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="index.html">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-7-3a1 1 0 1 0-2 0 9 9 0 0 0 8 8v3h2v-3a9 9 0 0 0 8-8 1 1 0 1 0-2 0 7 7 0 0 1-14 0Z" fill="currentColor"/></svg>
+        </span>
+        Cough Code
+      </a>
+      <div class="header-actions">
+        <a class="btn" href="index.html">เริ่มใหม่</a>
+        <div class="theme-switch" title="สลับโหมดสว่าง/มืด">
+          <input type="checkbox" id="themeToggle" />
+          <label for="themeToggle"><i class="thumb"></i></label>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="stepper" aria-label="ขั้นตอนการประเมิน">
+    <div class="step is-done"><span class="step-dot">✓</span><span class="step-label">อัดเสียงไอ</span></div>
+    <div class="step-line is-done"></div>
+    <div class="step is-done"><span class="step-dot">✓</span><span class="step-label">อาการร่วม</span></div>
+    <div class="step-line is-done"></div>
+    <div class="step is-active"><span class="step-dot">3</span><span class="step-label">ผลลัพธ์</span></div>
+  </nav>
+
+  <main>
+    <section class="container-narrow section" id="urgentBox" style="display:none">
+      <div class="alert alert-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <p class="alert-title">ควรพบแพทย์โดยเร็ว</p>
+          <p class="alert-body" id="urgentText">คุณระบุอาการที่อาจรุนแรง ควรได้รับการตรวจจากแพทย์โดยเร็ว ไม่ควรรอผลจากเครื่องมือนี้เพียงอย่างเดียว</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container-narrow section">
+      <div class="top-result">
+        <p class="top-eyebrow">แนวโน้มสูงสุดจากการประเมิน</p>
+        <p class="top-name" id="topName">—</p>
+        <p class="top-prob" id="topProb">—</p>
+      </div>
+      <p class="muted small center" id="note" style="margin-top:12px"></p>
+    </section>
+
+    <section class="container-narrow section">
+      <div class="card">
+        <h2 class="center">ผลแยกตามกลุ่มอาการ</h2>
+        <p class="muted center small">แสดงแนวโน้มของ 4 กลุ่มอาการทางเดินหายใจที่พบบ่อย</p>
+        <div class="tubes" id="tubes"></div>
+      </div>
+    </section>
+
+    <section class="container-narrow section">
+      <div class="card">
+        <h2>คำแนะนำเบื้องต้น</h2>
+        <ul class="advice" id="adviceList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="container center"><p class="muted small">ผลนี้เป็นการประเมินเบื้องต้นเท่านั้น ไม่สามารถวินิจฉัยแทนแพทย์ได้ หากอาการแย่ลงหรือไม่มั่นใจ ควรพบแพทย์เสมอ</p></div></footer>
+
+  <script src="theme.js" defer></script>
+  <script>
+  (() => {
+    const diagRaw = sessionStorage.getItem('diagnosis');
+    if (!diagRaw) { location.href = 'symptoms.html'; return; }
+
+    let data;
+    try { data = JSON.parse(diagRaw); }
+    catch { data = { conditions:{} }; }
+
+    let symptoms = [];
+    try { symptoms = JSON.parse(sessionStorage.getItem('symptoms') || '[]'); } catch {}
+
+    // ลำดับ, สี และคำแนะนำของแต่ละกลุ่ม
+    const META = {
+      "RSV":    { colorClass:"c-rsv",    colorVar:"var(--teal)",   label:"RSV" },
+      "ไอกรน":   { colorClass:"c-violet", colorVar:"var(--violet)", label:"ไอกรน" },
+      "ปอดบวม":  { colorClass:"c-coral",  colorVar:"var(--coral)",  label:"ปอดบวม" },
+      "อื่นๆ":    { colorClass:"c-slate",  colorVar:"var(--slate)",  label:"อื่นๆ" },
+    };
+    const ORDER = ["RSV","ไอกรน","ปอดบวม","อื่นๆ"];
+
+    const ADVICE = {
+      "RSV": [
+        "พักผ่อนให้เพียงพอ ดื่มน้ำอุ่นบ่อย ๆ เพื่อลดการระคายคอ",
+        "หลีกเลี่ยงการอยู่ใกล้ชิดเด็กเล็กหรือผู้สูงอายุ เนื่องจาก RSV แพร่กระจายได้ง่าย",
+        "สังเกตอาการหายใจ หากหายใจเร็วหรือหอบเหนื่อยขึ้น ควรพบแพทย์ทันที",
+      ],
+      "ไอกรน": [
+        "ไอกรนสามารถแพร่กระจายได้ง่าย ควรสวมหน้ากากอนามัยและแยกของใช้ส่วนตัว",
+        "หากไอต่อเนื่องเป็นชุดจนหายใจไม่ทันหรือมีเสียงหวีดหลังไอ ควรพบแพทย์เพื่อตรวจยืนยันและรับยา",
+        "แจ้งผู้ใกล้ชิดที่เป็นทารกหรือหญิงตั้งครรภ์ เนื่องจากมีความเสี่ยงสูงหากติดเชื้อ",
+      ],
+      "ปอดบวม": [
+        "อาการนี้อาจรุนแรงกว่ากลุ่มอื่น ควรพบแพทย์เพื่อตรวจร่างกายและเอกซเรย์ปอดโดยเร็ว",
+        "สังเกตไข้สูงต่อเนื่อง เจ็บหน้าอกเวลาหายใจ หรือหายใจลำบาก หากมีควรไปโรงพยาบาลทันที",
+        "พักผ่อนอย่างเต็มที่และดื่มน้ำให้เพียงพอระหว่างรอพบแพทย์",
+      ],
+      "อื่นๆ": [
+        "อาการอาจมาจากการติดเชื้อทางเดินหายใจทั่วไป พักผ่อนและดื่มน้ำมาก ๆ",
+        "สังเกตอาการต่อเนื่อง 2–3 วัน หากไม่ดีขึ้นหรือแย่ลง ควรพบแพทย์",
+        "รักษาความสะอาด ล้างมือบ่อย ๆ เพื่อลดการแพร่กระจายเชื้อ",
+      ],
+    };
+
+    const CHECK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    const conditions = data.conditions || {};
+    const entries = ORDER.map(name => [name, conditions[name] ?? 0]);
+    const top = entries.slice().sort((a,b)=>b[1]-a[1])[0] || ["—",0];
+
+    document.getElementById('topName').textContent = META[top[0]] ? META[top[0]].label : top[0];
+    document.getElementById('topProb').textContent = (top[1]*100).toFixed(1) + '%';
+
+    // วาดหลอดผล 4 หลอด
+    const tubesEl = document.getElementById('tubes');
+    tubesEl.innerHTML = entries.map(([name, p]) => {
+      const meta = META[name] || { colorClass:"c-slate", colorVar:"var(--slate)", label:name };
+      const isTop = name === top[0];
+      const pct = Math.round(p*100);
+      return `
+        <div class="tube ${isTop ? 'is-top' : ''}" style="${isTop ? `--top-color:${meta.colorVar}` : ''}">
+          <span class="tube-pct">${pct}%</span>
+          <div class="tube-shell">
+            <div class="tube-fill ${meta.colorClass}" data-target="${pct}" style="height:0%"></div>
+          </div>
+          <span class="tube-label">${meta.label}</span>
+        </div>`;
+    }).join('');
+    // เติมหลอดจาก 0 ไปยังค่าจริงหลัง paint แรก เพื่อให้เห็นทรานซิชัน
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.querySelectorAll('.tube-fill').forEach(el => {
+          el.style.height = el.dataset.target + '%';
+        });
+      });
+    });
+
+    // คำแนะนำตามกลุ่มที่มีแนวโน้มสูงสุด
+    const adviceList = document.getElementById('adviceList');
+    const tips = ADVICE[top[0]] || ADVICE["อื่นๆ"];
+    adviceList.innerHTML = tips.map(t => `<li>${CHECK_SVG}<span>${t}</span></li>`).join('');
+
+    // สัญญาณเตือนรุนแรงจากอาการที่กรอกไว้ (ไม่ขึ้นกับผลวิเคราะห์)
+    const SEVERE = ["เจ็บหน้าอก","หายใจลำบาก","หายใจเร็ว","หายใจหอบเหนื่อย"];
+    const foundSevere = SEVERE.filter(s => symptoms.includes(s));
+    if (foundSevere.length){
+      document.getElementById('urgentBox').style.display = 'block';
+      document.getElementById('urgentText').textContent =
+        `คุณระบุว่ามีอาการ ${foundSevere.join(', ')} ซึ่งอาจเป็นสัญญาณรุนแรง ควรไปพบแพทย์หรือสถานพยาบาลโดยเร็ว ไม่ควรรอผลจากเครื่องมือนี้`;
+    }
+
+    // บอกว่าเป็นผลจำลองหรือไม่
+    if (sessionStorage.getItem('diag_fallback') === '1') {
+      document.getElementById('note').textContent = 'หมายเหตุ: แสดงผลแบบประมาณการ (เชื่อมต่อเซิร์ฟเวอร์วิเคราะห์ไม่ได้ในขณะนี้)';
+    } else {
+      document.getElementById('note').textContent = 'ผลนี้เป็นการประเมินเบื้องต้น ไม่ใช่การวินิจฉัยทางการแพทย์';
+    }
+  })();
+  </script>
+</body>
+</html>
