@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+numpy
+soundfile
+librosa>=0.10.1
+python-multipart
+
+# ถ้าใช้โมเดลจริงค่อยเพิ่ม torch / onnxruntime ตามที่คุณใช้
